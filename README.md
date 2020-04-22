@@ -87,7 +87,7 @@ See also [vars\main.yml](vars\main.yml) for more detail about the cloud authenti
 - hosts: openstack
   gather_facts: no # We can't gather facts if we don't have a flow yet from Ansible to the target
   roles:
-    - { role: openstack, tags: openstack }
+    - { role: sverto.os_security_groups, tags: os }
 ```
 
 
