@@ -1,0 +1,70 @@
+- when: |
+    os_environment is not defined or os_environment == None 
+    or security_group.environment is not defined or security_group.environment == None
+    or security_group.environment == os_environment
+  block:
+    # Facts
+    - name: 'Set current project into OpenStack auth object'
+      tags: noprint
+      block:
+        - set_fact:
+            cloud_project:
+              auth:
+                project_name:        '{{ security_group.project        | default(os_project) }}'
+                project_domain_name: '{{ security_group.project_domain | default(os_project_domain) }}'
+        - set_fact:
+            cloud_provider: '{{ cloud_provider | combine(cloud_project, recursive=True) }}'
+    # Create security group
+    - name: 'Create security group "{{ security_group.name }}"'
+      os_security_group:
+        state: present
+        cloud: '{{ cloud_provider }}'
+        name:        '{{ security_group.name }}'
+        description: '{{ security_group.description | default(None) }}'
+    
+    # Create rules in security group
+    - name: 'Create rules for security group "{{ security_group.name }}"'
+      os_security_group_rule:
+        state: present
+        cloud: '{{ cloud_provider }}'
+        security_group:   '{{ security_group.name }}'
+        direction:        '{{ rule.direction      | default("ingress") }}'
+        protocol:         '{{ rule.protocol       | default("tcp") }}'
+        ethertype:        '{{ rule.ethertype      | default("IPv4") }}'
+        port_range_min:   '{{ rule.port_range_min | default(rule.port) | default(0) }}'
+        port_range_max:   '{{ rule.port_range_max | default(rule.port_range_min) | default(rule.port) | default(0) }}'
+        remote_ip_prefix: '{{ rule.ip             | default("0.0.0.0/0") }}'
+      when: security_group.rules is defined
+      register: result
+      failed_when: result.failed == True and not "already exists" in result.msg # Workarround for Ansible bug ConflictException
+      loop: "{{ security_group.rules }}"
+      loop_control:
+        loop_var: rule
+    
+    # Apply security group on hosts
+    - name: 'Apply security group "{{ security_group.name }}" on hosts'
+      shell: 'openstack server add security group "{{hostname}}" "{{security_group.name}}"'
+      environment:
+        OS_IDENTITY_API_VERSION: "{{ cloud_provider.auth_version }}"
+        OS_AUTH_URL:             "{{ cloud_provider.auth.auth_url }}"
+        OS_USER_DOMAIN_NAME:     "{{ cloud_provider.auth.user_domain_name }}"
+        OS_PROJECT_DOMAIN_NAME:  "{{ cloud_provider.auth.project_domain_name }}"
+        OS_USERNAME:             "{{ cloud_provider.auth.username }}"
+        OS_PASSWORD:             "{{ cloud_provider.auth.password }}"
+        OS_PROJECT_NAME:         "{{ cloud_provider.auth.project_name }}"
+      when: security_group.hosts is defined
+      loop: "{{ security_group.hosts }}"
+      loop_control:
+        loop_var: hostname
+    
+    # -> Setting security groups on hosts is not supported by Ansible currently...
+    # - name: "Set security group on hosts {{ security_group.name }}"
+    #   os_server:
+    #     state: present
+    #     cloud: "{{ cloud_provider }}"
+    #     name: "{{ hostname }}"
+    #     security_groups: "{{ security_group.name }}"
+    #   when: security_group.hosts
+    #   loop: "{{ security_group.hosts }}"
+    #   loop_control:
+    #     loop_var: hostname

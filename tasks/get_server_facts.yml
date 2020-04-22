@@ -1,0 +1,16 @@
+- name: 'Get OpenStack server facts for {{item}}'
+  os_server_facts:
+    cloud: '{{cloud_provider}}'
+    server: '{{item}}'
+    
+- name: Parse server facts into os_server_facts
+  tags: noprint
+  block:
+    # Pull facts from OpenStack
+    - set_fact:
+        current_server: '{{openstack_servers|selectattr("name", "match", item)|first}}' # (IP is at current_server.accessIPv4)
+    
+    # Set result to var
+    - set_fact:
+        os_server_facts: '{{ (os_server_facts|default({})) | combine({ item: current_server }, recursive=True) }}'
+      

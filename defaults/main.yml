@@ -1,0 +1,3 @@
+# Defaults
+os_environment: ""
+os_security_groups: []

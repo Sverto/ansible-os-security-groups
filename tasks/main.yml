@@ -1,0 +1,40 @@
+# Validate config
+- name: Validate config
+  tags: noprint
+  fail: msg='Bailing out. Missing parameter {{item}}.'
+  when: lookup('vars', item, default='') == ''
+  run_once: true
+  loop:
+    - os_url
+    - os_project
+    - os_project_domain
+    - os_user
+    - os_password
+    - os_user_domain
+    - os_security_groups
+
+# Uses OpenStackSDK on Ansible server
+- delegate_to: localhost
+  block:
+    # Get Openstack server facts
+    - name: 'Get Openstack server facts'
+      tags: [never, os_server_facts]
+      run_once: true
+      include_tasks: get_server_facts.yml
+      args:
+        apply:
+          tags: os_server_facts
+      loop: "{{ansible_play_hosts}}"
+      
+    # Create user defined security groups
+    - name: Create user defined security groups
+      tags: os_security_groups
+      run_once: true
+      include_tasks: create_security_group.yml
+      args:
+        apply:
+          tags: os_security_groups
+      loop: "{{ os_security_groups }}"
+      loop_control:
+        loop_var: security_group
+        

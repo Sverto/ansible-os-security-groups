@@ -1,0 +1,15 @@
+# Note: Can cause conflict when a clouds file is present in ~/.config/openstack/clouds.yaml or /etc/openstack/clouds.yaml
+cloud_provider:
+  region_name: regionOne
+  auth_version: 3
+  compute_api_version: 2
+  volume_api_version: 2
+  auth_type: password
+  auth:
+    auth_url:            "{{ os_url }}"
+    user_domain_name:    "{{ os_user_domain }}"
+    username:            "{{ os_user }}"
+    password:            "{{ os_password }}"
+    project_name:        "{{ os_project | default(None) }}"
+    project_domain_name: "{{ os_project_domain | default(None) }}"
+    
